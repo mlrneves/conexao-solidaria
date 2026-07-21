@@ -1,0 +1,36 @@
+# Values do chart kube-prometheus-stack (Prometheus Operator + Grafana).
+# Instalação: scripts/obs-up.ps1  (ou os comandos helm do README)
+#
+# Sobre o requisito "Zabbix e Grafana": o critério de aceite pede /health ou
+# /metrics + dashboard Grafana com métricas reais. Prometheus é o coletor
+# padrão do ecossistema Kubernetes (CPU/memória de pods vêm do
+# kubelet/cAdvisor) e alimenta o Grafana exigido — justificativa completa em
+# docs/ARQUITETURA.md.
+
+alertmanager:
+  enabled: false # fora do escopo do MVP — economiza recursos do cluster local
+
+grafana:
+  adminPassword: grafana-dev
+  service:
+    type: NodePort
+    nodePort: 30300 # http://localhost:30300 (admin / grafana-dev)
+  sidecar:
+    dashboards:
+      enabled: true
+      # importa ConfigMaps com label grafana_dashboard=1 de qualquer namespace
+      searchNamespace: ALL
+
+prometheus:
+  prometheusSpec:
+    # PEGADINHA nº 1 do kps: sem estes flags, ServiceMonitors sem o label
+    # "release: kps" são ignorados SILENCIOSAMENTE (targets nunca aparecem).
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 24h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi

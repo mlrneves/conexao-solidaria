@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campanhas-api
+  namespace: conexao-solidaria
+  labels:
+    app: campanhas-api
+spec:
+  # replicas fixo em 1: as migrations + seed rodam no startup e não toleram
+  # execução concorrente. Evolução: job de migration separado.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: campanhas-api
+  template:
+    metadata:
+      labels:
+        app: campanhas-api
+    spec:
+      containers:
+        - name: campanhas-api
+          # Imagem local (scripts/build-images.ps1) — o cluster do Docker
+          # Desktop compartilha o daemon, então IfNotPresent a encontra.
+          # Alternativa CI: ghcr.io/<owner>/conexao-solidaria/campanhas-api:latest
+          image: conexao-solidaria/campanhas-api:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: campanhas-api
+  namespace: conexao-solidaria
+  labels:
+    app: campanhas-api
+spec:
+  type: NodePort
+  selector:
+    app: campanhas-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30081 # http://localhost:30081/swagger

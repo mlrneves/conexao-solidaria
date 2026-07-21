@@ -1,0 +1,48 @@
+# Instruem o Prometheus Operator a raspar o /metrics dos 3 microsserviços.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: campanhas-api
+  namespace: conexao-solidaria
+  labels:
+    app: campanhas-api
+spec:
+  selector:
+    matchLabels:
+      app: campanhas-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: doacoes-api
+  namespace: conexao-solidaria
+  labels:
+    app: doacoes-api
+spec:
+  selector:
+    matchLabels:
+      app: doacoes-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: doacoes-worker
+  namespace: conexao-solidaria
+  labels:
+    app: doacoes-worker
+spec:
+  selector:
+    matchLabels:
+      app: doacoes-worker
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

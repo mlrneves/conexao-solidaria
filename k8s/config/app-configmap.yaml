@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: conexao-solidaria
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  # comunicação interna entre serviços usa o nome do Service
+  Campanhas__BaseUrl: "http://campanhas-api:8080"
+  RabbitMq__Host: "rabbitmq"
+  RabbitMq__Port: "5672"
+  Mongo__Database: "conexao_doacoes"
+  Jwt__Issuer: "conexao-solidaria"
+  Jwt__Audience: "conexao-solidaria"
+  Jwt__ExpiracaoMinutos: "120"
+  # origem do Blazor exposto via NodePort
+  Cors__AllowedOrigins__0: "http://localhost:30080"

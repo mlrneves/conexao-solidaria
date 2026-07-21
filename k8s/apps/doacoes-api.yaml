@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doacoes-api
+  namespace: conexao-solidaria
+  labels:
+    app: doacoes-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: doacoes-api
+  template:
+    metadata:
+      labels:
+        app: doacoes-api
+    spec:
+      containers:
+        - name: doacoes-api
+          image: conexao-solidaria/doacoes-api:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doacoes-api
+  namespace: conexao-solidaria
+  labels:
+    app: doacoes-api
+spec:
+  type: NodePort
+  selector:
+    app: doacoes-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30082 # http://localhost:30082/swagger

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doacoes-worker
+  namespace: conexao-solidaria
+  labels:
+    app: doacoes-worker
+spec:
+  # Cena do vídeo: kubectl scale deployment doacoes-worker --replicas=0
+  # (mensagem fica visível na fila) e depois --replicas=1 (consome ao vivo).
+  replicas: 1
+  selector:
+    matchLabels:
+      app: doacoes-worker
+  template:
+    metadata:
+      labels:
+        app: doacoes-worker
+    spec:
+      containers:
+        - name: doacoes-worker
+          image: conexao-solidaria/doacoes-worker:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http # /health e /metrics
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+# ClusterIP apenas para o Prometheus raspar /metrics via ServiceMonitor.
+apiVersion: v1
+kind: Service
+metadata:
+  name: doacoes-worker
+  namespace: conexao-solidaria
+  labels:
+    app: doacoes-worker
+spec:
+  selector:
+    app: doacoes-worker
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

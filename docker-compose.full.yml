@@ -1,0 +1,138 @@
+# Sobe TODA a plataforma em containers (infra + microsserviços + web).
+# Caminho rápido de correção sem Kubernetes:
+#   docker compose -f docker-compose.full.yml up --build -d
+#
+# URLs:
+#   Web (Blazor).....: http://localhost:8080
+#   Campanhas.Api....: http://localhost:8081/swagger
+#   Doacoes.Api......: http://localhost:8082/swagger
+#   Doacoes.Worker...: http://localhost:8083/metrics
+#   RabbitMQ UI......: http://localhost:15672 (conexao / conexao-dev)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: conexao_campanhas
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app-dev-pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data-full:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d conexao_campanhas"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: app
+      MONGO_INITDB_ROOT_PASSWORD: app-dev-pass
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data-full:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: conexao
+      RABBITMQ_DEFAULT_PASS: conexao-dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbit-data-full:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  campanhas-api:
+    build:
+      context: .
+      dockerfile: src/Services/Campanhas/Campanhas.Api/Dockerfile
+    image: conexao-solidaria/campanhas-api:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=conexao_campanhas;Username=app;Password=app-dev-pass
+      Cors__AllowedOrigins__0: http://localhost:8080
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  doacoes-api:
+    build:
+      context: .
+      dockerfile: src/Services/Doacoes/Doacoes.Api/Dockerfile
+    image: conexao-solidaria/doacoes-api:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Mongo: mongodb://app:app-dev-pass@mongodb:27017/?authSource=admin
+      Campanhas__BaseUrl: http://campanhas-api:8080
+      RabbitMq__Host: rabbitmq
+      RabbitMq__User: conexao
+      RabbitMq__Pass: conexao-dev
+      Cors__AllowedOrigins__0: http://localhost:8080
+    ports:
+      - "8082:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      campanhas-api:
+        condition: service_started
+
+  doacoes-worker:
+    build:
+      context: .
+      dockerfile: src/Services/Doacoes/Doacoes.Worker/Dockerfile
+    image: conexao-solidaria/doacoes-worker:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=conexao_campanhas;Username=app;Password=app-dev-pass
+      ConnectionStrings__Mongo: mongodb://app:app-dev-pass@mongodb:27017/?authSource=admin
+      RabbitMq__Host: rabbitmq
+      RabbitMq__User: conexao
+      RabbitMq__Pass: conexao-dev
+    ports:
+      - "8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: src/Web/ConexaoSolidaria.Web/Dockerfile
+    image: conexao-solidaria/web:local
+    ports:
+      - "8080:80"
+    volumes:
+      # URLs das APIs para o browser (compose expõe em 8081/8082)
+      - ./deploy/web/appsettings.compose.json:/usr/share/nginx/html/appsettings.json:ro
+    depends_on:
+      campanhas-api:
+        condition: service_started
+      doacoes-api:
+        condition: service_started
+
+volumes:
+  pg-data-full:
+  mongo-data-full:
+  rabbit-data-full:
