@@ -1,0 +1,59 @@
+# Infraestrutura de desenvolvimento (Postgres, MongoDB, RabbitMQ).
+# Uso: docker compose up -d
+# As APIs rodam fora de container neste modo (dotnet run) — loop rápido de dev.
+# Para subir TUDO em containers, use docker-compose.full.yml.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: conexao-postgres
+    environment:
+      POSTGRES_DB: conexao_campanhas
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app-dev-pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d conexao_campanhas"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongodb:
+    image: mongo:7
+    container_name: conexao-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: app
+      MONGO_INITDB_ROOT_PASSWORD: app-dev-pass
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: conexao-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: conexao
+      RABBITMQ_DEFAULT_PASS: conexao-dev
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI (http://localhost:15672)
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pg-data:
+  mongo-data:
+  rabbit-data:
