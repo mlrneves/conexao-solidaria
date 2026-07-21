@@ -1,6 +1,6 @@
 # Conexão Solidária 💗
 
-![CI](https://github.com/SEU_USUARIO/SEU_REPO/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/mlrneves/conexao-solidaria/actions/workflows/ci.yml/badge.svg)
 
 MVP da plataforma de doações da **ONG Esperança Solidária** — hackathon da
 pós-graduação (Fase 5: Agilidade, Segurança e IA).
@@ -147,7 +147,7 @@ idempotência do worker (com mocks NSubstitute).
 
 Pipeline em [.github/workflows/ci.yml](.github/workflows/ci.yml), acionado a
 cada push na `main`: build .NET → testes xUnit → build das 4 imagens Docker →
-push no **GHCR** (`ghcr.io/<owner>/conexao-solidaria/*`, tags `latest` + SHA).
+push no **GHCR** (`ghcr.io/mlrneves/conexao-solidaria/*`, tags `latest` + SHA).
 
 > Deploy automatizado no cluster é **opcional** no edital e não se aplica:
 > o cluster é local (inalcançável pelo runner). O critério obrigatório —

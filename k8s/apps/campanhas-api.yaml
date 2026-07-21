@@ -21,7 +21,7 @@ spec:
         - name: campanhas-api
           # Imagem local (scripts/build-images.ps1) — o cluster do Docker
           # Desktop compartilha o daemon, então IfNotPresent a encontra.
-          # Alternativa CI: ghcr.io/<owner>/conexao-solidaria/campanhas-api:latest
+          # Alternativa CI: ghcr.io/mlrneves/conexao-solidaria/campanhas-api:latest
           image: conexao-solidaria/campanhas-api:local
           imagePullPolicy: IfNotPresent
           ports:
