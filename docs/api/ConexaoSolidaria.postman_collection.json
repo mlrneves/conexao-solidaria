@@ -1,0 +1,179 @@
+{
+  "info": {
+    "name": "Conexão Solidária",
+    "description": "Fluxo completo do MVP: auth JWT/RBAC, campanhas, painel público e doação assíncrona. Variáveis: campanhas/doacoes (URLs) — defaults apontam para o Kubernetes local (NodePort). O login preenche os tokens automaticamente.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "campanhas", "value": "http://localhost:30081" },
+    { "key": "doacoes", "value": "http://localhost:30082" },
+    { "key": "tokenGestor", "value": "" },
+    { "key": "tokenDoador", "value": "" },
+    { "key": "campanhaId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login gestor (seed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  pm.collectionVariables.set('tokenGestor', pm.response.json().accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{campanhas}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"gestor@conexaosolidaria.org\",\n  \"senha\": \"Gestor@123!\"\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Criar campanha inválida (400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenGestor}}" }
+        ],
+        "url": "{{campanhas}}/api/campanhas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Campanha inválida\",\n  \"descricao\": \"Deve falhar: término no passado\",\n  \"dataInicio\": \"2026-01-01T00:00:00Z\",\n  \"dataFim\": \"2026-01-31T00:00:00Z\",\n  \"metaFinanceira\": 1000\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Criar campanha válida (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  pm.collectionVariables.set('campanhaId', pm.response.json().id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenGestor}}" }
+        ],
+        "url": "{{campanhas}}/api/campanhas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Natal Solidário 2026\",\n  \"descricao\": \"Presentes e ceia para as crianças acolhidas pela ONG.\",\n  \"dataInicio\": \"2026-11-01T00:00:00Z\",\n  \"dataFim\": \"2026-12-25T00:00:00Z\",\n  \"metaFinanceira\": 25000\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Registrar doador — CPF inválido (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{campanhas}}/api/auth/registrar",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nomeCompleto\": \"Maria da Silva\",\n  \"email\": \"maria@email.com\",\n  \"cpf\": \"111.111.111-11\",\n  \"senha\": \"SenhaForte1!\",\n  \"consentimentoLgpd\": true\n}"
+        }
+      }
+    },
+    {
+      "name": "5. Registrar doador válido (201)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{campanhas}}/api/auth/registrar",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nomeCompleto\": \"Maria da Silva\",\n  \"email\": \"maria@email.com\",\n  \"cpf\": \"529.982.247-25\",\n  \"senha\": \"SenhaForte1!\",\n  \"consentimentoLgpd\": true\n}"
+        }
+      }
+    },
+    {
+      "name": "6. Login doador",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  pm.collectionVariables.set('tokenDoador', pm.response.json().accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{campanhas}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"maria@email.com\",\n  \"senha\": \"SenhaForte1!\"\n}"
+        }
+      }
+    },
+    {
+      "name": "7. Meus dados — CPF mascarado (LGPD)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenDoador}}" }],
+        "url": "{{campanhas}}/api/auth/me"
+      }
+    },
+    {
+      "name": "8. Painel de Transparência (público)",
+      "request": {
+        "method": "GET",
+        "url": "{{campanhas}}/api/publico/campanhas"
+      }
+    },
+    {
+      "name": "9. Doar (202 Accepted — assíncrono)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenDoador}}" }
+        ],
+        "url": "{{doacoes}}/api/doacoes",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"campanhaId\": \"{{campanhaId}}\",\n  \"valor\": 150.00\n}"
+        }
+      }
+    },
+    {
+      "name": "10. Minhas doações",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenDoador}}" }],
+        "url": "{{doacoes}}/api/doacoes/minhas"
+      }
+    },
+    {
+      "name": "11. RBAC: doador na gestão (403)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenDoador}}" }],
+        "url": "{{campanhas}}/api/campanhas"
+      }
+    }
+  ]
+}

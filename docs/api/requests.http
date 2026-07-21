@@ -1,0 +1,112 @@
+### Conexão Solidária — requests de demonstração (VS Code REST Client)
+### Ajuste os hosts conforme o ambiente:
+###   dev local:  campanhas=http://localhost:5081  doacoes=http://localhost:5082
+###   compose:    campanhas=http://localhost:8081  doacoes=http://localhost:8082
+###   kubernetes: campanhas=http://localhost:30081 doacoes=http://localhost:30082
+
+@campanhas = http://localhost:30081
+@doacoes = http://localhost:30082
+
+### 1. Login do gestor (seed) — copie o accessToken
+# @name loginGestor
+POST {{campanhas}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "gestor@conexaosolidaria.org",
+  "senha": "Gestor@123!"
+}
+
+### 2. Criar campanha INVÁLIDA (DataFim no passado) → 400
+POST {{campanhas}}/api/campanhas
+Content-Type: application/json
+Authorization: Bearer {{loginGestor.response.body.accessToken}}
+
+{
+  "titulo": "Campanha inválida",
+  "descricao": "Deve falhar: término no passado",
+  "dataInicio": "2026-01-01T00:00:00Z",
+  "dataFim": "2026-01-31T00:00:00Z",
+  "metaFinanceira": 1000
+}
+
+### 3. Criar campanha válida → 201
+# @name criarCampanha
+POST {{campanhas}}/api/campanhas
+Content-Type: application/json
+Authorization: Bearer {{loginGestor.response.body.accessToken}}
+
+{
+  "titulo": "Natal Solidário 2026",
+  "descricao": "Presentes e ceia para as crianças acolhidas pela ONG.",
+  "dataInicio": "2026-11-01T00:00:00Z",
+  "dataFim": "2026-12-25T00:00:00Z",
+  "metaFinanceira": 25000
+}
+
+### 4. Cadastro de doador com CPF inválido → 400
+POST {{campanhas}}/api/auth/registrar
+Content-Type: application/json
+
+{
+  "nomeCompleto": "Maria da Silva",
+  "email": "maria@email.com",
+  "cpf": "111.111.111-11",
+  "senha": "SenhaForte1!",
+  "consentimentoLgpd": true
+}
+
+### 5. Cadastro de doador válido → 201 (resposta NÃO devolve o CPF)
+POST {{campanhas}}/api/auth/registrar
+Content-Type: application/json
+
+{
+  "nomeCompleto": "Maria da Silva",
+  "email": "maria@email.com",
+  "cpf": "529.982.247-25",
+  "senha": "SenhaForte1!",
+  "consentimentoLgpd": true
+}
+
+### 6. Login do doador
+# @name loginDoador
+POST {{campanhas}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "maria@email.com",
+  "senha": "SenhaForte1!"
+}
+
+### 7. Meus dados (CPF mascarado — LGPD)
+GET {{campanhas}}/api/auth/me
+Authorization: Bearer {{loginDoador.response.body.accessToken}}
+
+### 8. Painel de Transparência (público — sem token)
+GET {{campanhas}}/api/publico/campanhas
+
+### 9. Doar (use o id retornado no passo 3) → 202 Accepted
+### Cena do vídeo: antes deste passo, escale o worker para 0:
+###   kubectl scale deployment doacoes-worker --replicas=0 -n conexao-solidaria
+POST {{doacoes}}/api/doacoes
+Content-Type: application/json
+Authorization: Bearer {{loginDoador.response.body.accessToken}}
+
+{
+  "campanhaId": "{{criarCampanha.response.body.id}}",
+  "valor": 150.00
+}
+
+### 10. Minhas doações (Pendente → Processada após o worker voltar)
+GET {{doacoes}}/api/doacoes/minhas
+Authorization: Bearer {{loginDoador.response.body.accessToken}}
+
+### 11. RBAC: doador tentando acessar gestão → 403
+GET {{campanhas}}/api/campanhas
+Authorization: Bearer {{loginDoador.response.body.accessToken}}
+
+### 12. Health e métricas
+GET {{campanhas}}/health
+
+###
+GET {{doacoes}}/metrics
