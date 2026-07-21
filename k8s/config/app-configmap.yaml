@@ -13,5 +13,7 @@ data:
   Jwt__Issuer: "conexao-solidaria"
   Jwt__Audience: "conexao-solidaria"
   Jwt__ExpiracaoMinutos: "120"
-  # origem do Blazor exposto via NodePort
-  Cors__AllowedOrigins__0: "http://localhost:30080"
+  # Origens do Blazor: 8080 é a porta do port-forward (caminho padrão no Docker
+  # Desktop atual); 30080 cobre clusters que publicam NodePorts no host.
+  Cors__AllowedOrigins__0: "http://localhost:8080"
+  Cors__AllowedOrigins__1: "http://localhost:30080"

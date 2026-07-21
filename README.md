@@ -95,13 +95,30 @@ kubectl apply -f k8s/observability/grafana-dashboard.yaml
 
 Confirme: `kubectl get pods -n conexao-solidaria` — tudo `Running/READY`.
 
-| Serviço | URL |
-|---|---|
-| Web (Blazor) | http://localhost:30080 |
-| Campanhas.Api (Swagger) | http://localhost:30081/swagger |
-| Doacoes.Api (Swagger) | http://localhost:30082/swagger |
-| RabbitMQ Management | http://localhost:30672 (`conexao` / `conexao-dev`) |
-| Grafana | http://localhost:30300 (`admin` / `grafana-dev`) |
+### Acessando as interfaces
+
+As versões recentes do Docker Desktop executam o cluster dentro de um container
+que **não publica a faixa de NodePorts no host Windows**. Os Services seguem
+declarados como `NodePort` (conforme a entrega), mas o acesso garantido em
+qualquer máquina é via `port-forward`. Abra um terminal dedicado e rode:
+
+```powershell
+.\scripts\k8s-portforward.ps1     # Ctrl+C encerra os túneis
+```
+
+| Serviço | URL | Credenciais |
+|---|---|---|
+| Web (Blazor) | http://localhost:8080 | — |
+| Campanhas.Api (Swagger) | http://localhost:8081/swagger | — |
+| Doacoes.Api (Swagger) | http://localhost:8082/swagger | — |
+| RabbitMQ Management | http://localhost:8672 | `conexao` / `conexao-dev` |
+| Grafana | http://localhost:3000 | `admin` / `grafana-dev` |
+
+O Grafana sobe com o script de observabilidade; se preferir abrir só ele:
+`kubectl port-forward -n monitoring svc/kps-grafana 3000:80`
+
+> Se o seu Docker Desktop expuser NodePorts (versões mais antigas), as portas
+> `30080`, `30081`, `30082`, `30672` e `30300` também funcionam diretamente.
 
 Para derrubar: `.\scripts\k8s-down.ps1`
 
@@ -120,7 +137,7 @@ Client) ou [docs/api/ConexaoSolidaria.postman_collection.json](docs/api/ConexaoS
 (Postman — o login preenche os tokens sozinho).
 
 1. `POST /api/auth/login` (gestor seed) → copie o `accessToken` (role `GestorONG` — confira no jwt.io).
-2. No Swagger 30081, clique **Authorize** e cole o token.
+2. No Swagger da Campanhas.Api, clique **Authorize** e cole o token.
 3. `POST /api/campanhas` com `dataFim` no passado → **400** (regra de negócio).
 4. `POST /api/campanhas` válida → **201**. Guarde o `id`.
 5. `POST /api/auth/registrar` com CPF `111.111.111-11` → **400**; com CPF
@@ -174,7 +191,9 @@ docs/                  Arquitetura, bancos, SOLID, LGPD, ágil, roteiro do víde
 |---|---|
 | `ImagePullBackOff` | Rode `.\scripts\build-images.ps1` (manifests usam imagens locais `:local`). |
 | Pod da API reiniciando no começo | Normal: espera o Postgres/RabbitMQ ficarem prontos (retry embutido). Aguarde os probes. |
-| Grafana sem os targets | Aguarde ~1 min; confira que `obs-up.ps1` aplicou os ServiceMonitors. O values já traz `serviceMonitorSelectorNilUsesHelmValues=false`. |
-| Porta 30080-30672 ocupada | Ajuste o `nodePort` no YAML correspondente. |
+| Grafana/Prometheus sem os targets da aplicação | Os ServiceMonitors precisam do label `release: kps` (já incluso no YAML). Confirme em `kubectl get servicemonitor -n conexao-solidaria --show-labels` e aguarde ~1 min pela reconciliação do operator. |
+| `localhost:30081` (NodePort) não responde | Esperado no Docker Desktop atual — use `.\scripts\k8s-portforward.ps1`. |
+| Pods de mongodb/rabbitmq reiniciando em loop | As probes precisam de `timeoutSeconds` alto (já configurado): `mongosh` e `rabbitmq-diagnostics` não completam no timeout padrão de 1s. |
+| Porta local (8080-8082, 3000) ocupada | Edite as portas em `scripts/k8s-portforward.ps1`. |
 | Cluster K8s corrompido | Docker Desktop → Settings → Kubernetes → **Reset Kubernetes Cluster** e rode `k8s-up.ps1` de novo. |
 | CORS no browser | A origem do front precisa estar em `Cors__AllowedOrigins__0` (ConfigMap `app-config`). |

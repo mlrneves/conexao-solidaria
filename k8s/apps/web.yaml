@@ -1,4 +1,7 @@
-# URLs das APIs para o browser: no cluster local, os NodePorts 30081/30082.
+# URLs das APIs resolvidas pelo BROWSER (não dentro do cluster) — precisam
+# bater com as portas abertas por scripts/k8s-portforward.ps1, já que o Docker
+# Desktop atual não publica NodePorts no host. As origens correspondentes estão
+# liberadas no CORS das APIs (ConfigMap app-config).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,8 +11,8 @@ data:
   appsettings.json: |
     {
       "Api": {
-        "CampanhasBaseUrl": "http://localhost:30081",
-        "DoacoesBaseUrl": "http://localhost:30082"
+        "CampanhasBaseUrl": "http://localhost:8081",
+        "DoacoesBaseUrl": "http://localhost:8082"
       }
     }
 ---
