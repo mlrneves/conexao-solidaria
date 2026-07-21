@@ -1,0 +1,184 @@
+@page "/gestor/campanhas"
+@attribute [Authorize(Roles = "GestorONG")]
+@inject CampanhasApiClient Campanhas
+
+<PageTitle>Gestão de campanhas — Conexão Solidária</PageTitle>
+
+<section class="hero">
+    <h1>Gestão de campanhas</h1>
+    <p>Área exclusiva do perfil <strong>GestorONG</strong> (RBAC via JWT).</p>
+</section>
+
+@if (_mensagem is not null)
+{
+    <div class="alerta alerta-sucesso">@_mensagem</div>
+}
+@if (_erro is not null)
+{
+    <div class="alerta alerta-erro">@_erro</div>
+}
+
+<div class="gestor-grade">
+    <div>
+        <div class="acoes-lista">
+            <button class="botao botao-primario" @onclick="NovaCampanha">+ Nova campanha</button>
+            <button class="botao botao-contorno" @onclick="CarregarAsync" disabled="@_carregando">
+                @(_carregando ? "Atualizando..." : "🔄 Atualizar")
+            </button>
+        </div>
+
+        <table class="tabela">
+            <thead>
+                <tr>
+                    <th>Título</th>
+                    <th>Status</th>
+                    <th>Meta</th>
+                    <th>Arrecadado</th>
+                    <th>Término</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var campanha in _campanhas)
+                {
+                    <tr>
+                        <td>@campanha.Titulo</td>
+                        <td><span class="selo @SeloCss(campanha.Status)">@campanha.Status</span></td>
+                        <td>@Formatador.Moeda(campanha.MetaFinanceira)</td>
+                        <td><strong>@Formatador.Moeda(campanha.ValorTotalArrecadado)</strong></td>
+                        <td>@Formatador.Data(campanha.DataFim)</td>
+                        <td>
+                            <button class="botao botao-contorno" @onclick="() => Editar(campanha)">Editar</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_form is not null)
+    {
+        <div class="formulario-caixa formulario-lateral">
+            <h2>@(_form.Id is null ? "Nova campanha" : "Editar campanha")</h2>
+
+            <EditForm Model="_form" OnValidSubmit="SalvarAsync">
+                <DataAnnotationsValidator />
+
+                <label>Título</label>
+                <InputText @bind-Value="_form.Titulo" />
+                <ValidationMessage For="() => _form.Titulo" />
+
+                <label>Descrição</label>
+                <InputTextArea @bind-Value="_form.Descricao" rows="4" />
+                <ValidationMessage For="() => _form.Descricao" />
+
+                <label>Data de início</label>
+                <InputDate @bind-Value="_form.DataInicio" />
+
+                <label>Data de término</label>
+                <InputDate @bind-Value="_form.DataFim" />
+
+                <label>Meta financeira (R$)</label>
+                <InputNumber @bind-Value="_form.MetaFinanceira" step="0.01" />
+                <ValidationMessage For="() => _form.MetaFinanceira" />
+
+                @if (_form.Id is not null)
+                {
+                    <label>Status</label>
+                    <InputSelect @bind-Value="_form.Status">
+                        <option value="Ativa">Ativa</option>
+                        <option value="Concluida">Concluída</option>
+                        <option value="Cancelada">Cancelada</option>
+                    </InputSelect>
+                }
+
+                <div class="acoes-lista">
+                    <button class="botao botao-primario" type="submit" disabled="@_enviando">
+                        @(_enviando ? "Salvando..." : "Salvar")
+                    </button>
+                    <button class="botao botao-contorno" type="button" @onclick="() => _form = null">
+                        Cancelar
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+    private List<CampanhaGestor> _campanhas = [];
+    private CampanhaForm? _form;
+    private bool _carregando;
+    private bool _enviando;
+    private string? _erro;
+    private string? _mensagem;
+
+    protected override Task OnInitializedAsync() => CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        _erro = null;
+        try
+        {
+            _campanhas = await Campanhas.ListarTodasAsync();
+        }
+        catch
+        {
+            _erro = "Não foi possível carregar as campanhas.";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+
+    private void NovaCampanha() => _form = new CampanhaForm();
+
+    private void Editar(CampanhaGestor campanha) => _form = new CampanhaForm
+    {
+        Id = campanha.Id,
+        Titulo = campanha.Titulo,
+        Descricao = campanha.Descricao,
+        DataInicio = campanha.DataInicio.ToLocalTime(),
+        DataFim = campanha.DataFim.ToLocalTime(),
+        MetaFinanceira = campanha.MetaFinanceira,
+        Status = campanha.Status
+    };
+
+    private async Task SalvarAsync()
+    {
+        if (_form is null) return;
+        _enviando = true;
+        _erro = null;
+        _mensagem = null;
+        try
+        {
+            _erro = _form.Id is null
+                ? await Campanhas.CriarCampanhaAsync(_form)
+                : await Campanhas.AtualizarCampanhaAsync(_form);
+
+            if (_erro is null)
+            {
+                _mensagem = _form.Id is null ? "Campanha criada!" : "Campanha atualizada!";
+                _form = null;
+                await CarregarAsync();
+            }
+        }
+        catch
+        {
+            _erro = "Falha ao salvar a campanha.";
+        }
+        finally
+        {
+            _enviando = false;
+        }
+    }
+
+    private static string SeloCss(string status) => status switch
+    {
+        "Ativa" => "selo-processada",
+        "Cancelada" => "selo-rejeitada",
+        _ => "selo-pendente"
+    };
+}

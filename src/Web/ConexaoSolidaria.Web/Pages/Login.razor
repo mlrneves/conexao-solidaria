@@ -1,0 +1,70 @@
+@page "/login"
+@inject CampanhasApiClient Campanhas
+@inject JwtAuthenticationStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>Entrar — Conexão Solidária</PageTitle>
+
+<div class="formulario-caixa">
+    <h1>Entrar</h1>
+
+    @if (_erro is not null)
+    {
+        <div class="alerta alerta-erro">@_erro</div>
+    }
+
+    <EditForm Model="_form" OnValidSubmit="EntrarAsync">
+        <DataAnnotationsValidator />
+
+        <label>E-mail</label>
+        <InputText @bind-Value="_form.Email" type="email" autocomplete="username" />
+        <ValidationMessage For="() => _form.Email" />
+
+        <label>Senha</label>
+        <InputText @bind-Value="_form.Senha" type="password" autocomplete="current-password" />
+        <ValidationMessage For="() => _form.Senha" />
+
+        <button class="botao botao-primario botao-largo" type="submit" disabled="@_enviando">
+            @(_enviando ? "Entrando..." : "Entrar")
+        </button>
+    </EditForm>
+
+    <p class="formulario-rodape">
+        Ainda não tem conta? <a href="/cadastro">Cadastre-se para doar</a>.
+    </p>
+</div>
+
+@code {
+    private readonly LoginForm _form = new();
+    private bool _enviando;
+    private string? _erro;
+
+    [SupplyParameterFromQuery(Name = "retorno")]
+    public string? Retorno { get; set; }
+
+    private async Task EntrarAsync()
+    {
+        _enviando = true;
+        _erro = null;
+        try
+        {
+            var resultado = await Campanhas.LoginAsync(_form);
+            if (resultado is null)
+            {
+                _erro = "Credenciais inválidas.";
+                return;
+            }
+
+            await Auth.NotificarLoginAsync(resultado.AccessToken);
+            Nav.NavigateTo(string.IsNullOrWhiteSpace(Retorno) ? "/" : Retorno);
+        }
+        catch
+        {
+            _erro = "Falha ao conectar com a API de autenticação.";
+        }
+        finally
+        {
+            _enviando = false;
+        }
+    }
+}

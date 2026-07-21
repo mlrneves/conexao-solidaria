@@ -1,0 +1,101 @@
+@page "/doar/{CampanhaId:guid}"
+@attribute [Authorize]
+@inject CampanhasApiClient Campanhas
+@inject DoacoesApiClient Doacoes
+
+<PageTitle>Doar — Conexão Solidária</PageTitle>
+
+<div class="formulario-caixa">
+    @if (_aceita is not null)
+    {
+        <div class="alerta alerta-sucesso">
+            <h2>Doação recebida! &#127881;</h2>
+            <p>@_aceita.Mensagem</p>
+            <p>
+                Status atual: <span class="selo selo-pendente">@_aceita.Status</span> —
+                o processamento é <strong>assíncrono</strong> (RabbitMQ &rarr; Worker).
+            </p>
+            <a class="botao botao-primario" href="/minhas-doacoes">Acompanhar minhas doações</a>
+            <a class="botao botao-contorno" href="/">Voltar ao painel</a>
+        </div>
+    }
+    else
+    {
+        <h1>Fazer uma doação</h1>
+
+        @if (_campanha is not null)
+        {
+            <p class="formulario-intro">
+                Campanha: <strong>@_campanha.Titulo</strong>
+            </p>
+        }
+
+        @if (_erro is not null)
+        {
+            <div class="alerta alerta-erro">@_erro</div>
+        }
+
+        <EditForm Model="_form" OnValidSubmit="DoarAsync">
+            <DataAnnotationsValidator />
+
+            <label>Valor da doação (R$)</label>
+            <div class="valores-rapidos">
+                @foreach (var sugestao in new[] { 25m, 50m, 100m, 250m })
+                {
+                    <button type="button"
+                            class="botao @(_form.Valor == sugestao ? "botao-primario" : "botao-contorno")"
+                            @onclick="() => _form.Valor = sugestao">
+                        @Formatador.Moeda(sugestao)
+                    </button>
+                }
+            </div>
+            <InputNumber @bind-Value="_form.Valor" step="0.01" />
+            <ValidationMessage For="() => _form.Valor" />
+
+            <button class="botao botao-primario botao-largo" type="submit" disabled="@_enviando">
+                @(_enviando ? "Enviando..." : "Confirmar doação")
+            </button>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid CampanhaId { get; set; }
+
+    private readonly DoacaoForm _form = new();
+    private CampanhaPublica? _campanha;
+    private DoacaoAceita? _aceita;
+    private bool _enviando;
+    private string? _erro;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var painel = await Campanhas.PainelPublicoAsync();
+            _campanha = painel.FirstOrDefault(c => c.Id == CampanhaId);
+        }
+        catch
+        {
+            // painel indisponível não impede a doação — a API de doações revalida
+        }
+    }
+
+    private async Task DoarAsync()
+    {
+        _enviando = true;
+        _erro = null;
+        try
+        {
+            (_aceita, _erro) = await Doacoes.DoarAsync(CampanhaId, _form.Valor);
+        }
+        catch
+        {
+            _erro = "Falha ao conectar com a API de doações.";
+        }
+        finally
+        {
+            _enviando = false;
+        }
+    }
+}

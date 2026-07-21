@@ -1,0 +1,83 @@
+@page "/cadastro"
+@inject CampanhasApiClient Campanhas
+@inject NavigationManager Nav
+
+<PageTitle>Cadastro de doador — Conexão Solidária</PageTitle>
+
+<div class="formulario-caixa">
+    <h1>Cadastro de doador</h1>
+    <p class="formulario-intro">
+        Coletamos apenas o essencial para viabilizar suas doações
+        (minimização de dados — LGPD).
+    </p>
+
+    @if (_erro is not null)
+    {
+        <div class="alerta alerta-erro">@_erro</div>
+    }
+
+    <EditForm Model="_form" OnValidSubmit="CadastrarAsync">
+        <DataAnnotationsValidator />
+
+        <label>Nome completo</label>
+        <InputText @bind-Value="_form.NomeCompleto" autocomplete="name" />
+        <ValidationMessage For="() => _form.NomeCompleto" />
+
+        <label>E-mail</label>
+        <InputText @bind-Value="_form.Email" type="email" autocomplete="email" />
+        <ValidationMessage For="() => _form.Email" />
+
+        <label>CPF</label>
+        <InputText @bind-Value="_form.Cpf" placeholder="000.000.000-00" />
+        <ValidationMessage For="() => _form.Cpf" />
+
+        <label>Senha (mínimo 8 caracteres)</label>
+        <InputText @bind-Value="_form.Senha" type="password" autocomplete="new-password" />
+        <ValidationMessage For="() => _form.Senha" />
+
+        <label class="consentimento">
+            <InputCheckbox @bind-Value="_form.ConsentimentoLgpd" />
+            <span>
+                Autorizo o tratamento dos meus dados pessoais (nome, e-mail e CPF)
+                exclusivamente para gestão das minhas doações, conforme a
+                <strong>LGPD (Lei 13.709/2018)</strong>. Meu CPF nunca é exibido
+                publicamente e minha senha é armazenada com hash.
+            </span>
+        </label>
+        <ValidationMessage For="() => _form.ConsentimentoLgpd" />
+
+        <button class="botao botao-primario botao-largo" type="submit" disabled="@_enviando">
+            @(_enviando ? "Cadastrando..." : "Criar conta")
+        </button>
+    </EditForm>
+
+    <p class="formulario-rodape">
+        Já tem conta? <a href="/login">Entrar</a>.
+    </p>
+</div>
+
+@code {
+    private readonly CadastroForm _form = new();
+    private bool _enviando;
+    private string? _erro;
+
+    private async Task CadastrarAsync()
+    {
+        _enviando = true;
+        _erro = null;
+        try
+        {
+            _erro = await Campanhas.RegistrarAsync(_form);
+            if (_erro is null)
+                Nav.NavigateTo("/login?cadastrado=1");
+        }
+        catch
+        {
+            _erro = "Falha ao conectar com a API de cadastro.";
+        }
+        finally
+        {
+            _enviando = false;
+        }
+    }
+}

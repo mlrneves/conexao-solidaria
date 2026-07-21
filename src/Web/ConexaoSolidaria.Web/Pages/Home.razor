@@ -1,7 +1,70 @@
-﻿@page "/"
+@page "/"
+@inject CampanhasApiClient Campanhas
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Conexão Solidária — Painel de Transparência</PageTitle>
 
-<h1>Hello, world!</h1>
+<section class="hero">
+    <h1>Painel de Transparência</h1>
+    <p>
+        Campanhas ativas da ONG Esperança Solidária. Todos os valores
+        arrecadados são públicos — doe e acompanhe o impacto em tempo real.
+    </p>
+</section>
 
-Welcome to your new app.
+@if (_carregando)
+{
+    <p class="painel-vazio">Carregando campanhas...</p>
+}
+else if (_erro is not null)
+{
+    <div class="alerta alerta-erro">@_erro</div>
+}
+else if (_campanhas.Count == 0)
+{
+    <p class="painel-vazio">Nenhuma campanha ativa no momento. Volte em breve!</p>
+}
+else
+{
+    <div class="grade-campanhas">
+        @foreach (var campanha in _campanhas)
+        {
+            <article class="cartao">
+                <h2>@campanha.Titulo</h2>
+                <p class="cartao-descricao">@campanha.Descricao</p>
+
+                <div class="progresso">
+                    <div class="progresso-barra" style="width: @(campanha.PercentualMeta.ToString("F0"))%"></div>
+                </div>
+                <div class="progresso-legenda">
+                    <strong>@Formatador.Moeda(campanha.ValorTotalArrecadado)</strong>
+                    <span>de @Formatador.Moeda(campanha.MetaFinanceira) (@(campanha.PercentualMeta.ToString("F0"))%)</span>
+                </div>
+                <p class="cartao-prazo">Até @Formatador.Data(campanha.DataFim)</p>
+
+                <a class="botao botao-primario botao-largo" href="/doar/@campanha.Id">Doar agora</a>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private bool _carregando = true;
+    private string? _erro;
+    private List<CampanhaPublica> _campanhas = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _campanhas = await Campanhas.PainelPublicoAsync();
+        }
+        catch
+        {
+            _erro = "Não foi possível carregar as campanhas. As APIs estão no ar?";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+}

@@ -1,0 +1,87 @@
+@page "/minhas-doacoes"
+@attribute [Authorize(Roles = "Doador")]
+@inject DoacoesApiClient Doacoes
+
+<PageTitle>Minhas doações — Conexão Solidária</PageTitle>
+
+<section class="hero">
+    <h1>Minhas doações</h1>
+    <p>
+        Doações nascem <em>Pendentes</em> e são processadas de forma assíncrona
+        pelo Worker — clique em atualizar para ver o status mudar.
+    </p>
+</section>
+
+<div class="acoes-lista">
+    <button class="botao botao-contorno" @onclick="CarregarAsync" disabled="@_carregando">
+        @(_carregando ? "Atualizando..." : "🔄 Atualizar")
+    </button>
+</div>
+
+@if (_erro is not null)
+{
+    <div class="alerta alerta-erro">@_erro</div>
+}
+else if (_doacoes.Count == 0 && !_carregando)
+{
+    <p class="painel-vazio">Você ainda não fez doações. <a href="/">Ver campanhas ativas</a>.</p>
+}
+else
+{
+    <table class="tabela">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Processada em</th>
+                <th>Observação</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var doacao in _doacoes)
+            {
+                <tr>
+                    <td>@Formatador.DataHora(doacao.CriadaEmUtc)</td>
+                    <td><strong>@Formatador.Moeda(doacao.Valor)</strong></td>
+                    <td><span class="selo @SeloCss(doacao.Status)">@doacao.Status</span></td>
+                    <td>@(doacao.ProcessadaEmUtc is null ? "—" : Formatador.DataHora(doacao.ProcessadaEmUtc.Value))</td>
+                    <td>@(doacao.MotivoRejeicao ?? "—")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<MinhaDoacao> _doacoes = [];
+    private bool _carregando;
+    private string? _erro;
+
+    protected override Task OnInitializedAsync() => CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        _erro = null;
+        try
+        {
+            _doacoes = await Doacoes.MinhasAsync();
+        }
+        catch
+        {
+            _erro = "Não foi possível carregar suas doações.";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+
+    private static string SeloCss(string status) => status switch
+    {
+        "Processada" => "selo-processada",
+        "Rejeitada" => "selo-rejeitada",
+        _ => "selo-pendente"
+    };
+}

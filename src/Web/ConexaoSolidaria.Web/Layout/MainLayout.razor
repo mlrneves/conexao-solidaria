@@ -1,3 +1,56 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject JwtAuthenticationStateProvider Auth
+@inject NavigationManager Nav
 
-@Body
+<div class="app">
+    <header class="topo">
+        <div class="topo-conteudo">
+            <a class="logo" href="/">
+                <span class="logo-icone">&#10084;</span> Conexão Solidária
+            </a>
+            <nav class="menu">
+                <NavLink href="/" Match="NavLinkMatch.All">Campanhas</NavLink>
+                <AuthorizeView Roles="Doador">
+                    <NavLink href="/minhas-doacoes">Minhas doações</NavLink>
+                </AuthorizeView>
+                <AuthorizeView Roles="GestorONG">
+                    <NavLink href="/gestor/campanhas">Gestão</NavLink>
+                </AuthorizeView>
+            </nav>
+            <div class="sessao">
+                <AuthorizeView>
+                    <Authorized>
+                        <span class="sessao-nome" title="@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value">
+                            Olá, @PrimeiroNome(context.User.Identity?.Name)
+                        </span>
+                        <button class="botao botao-contorno" @onclick="SairAsync">Sair</button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="botao botao-contorno" href="/login">Entrar</a>
+                        <a class="botao botao-primario" href="/cadastro">Quero doar</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </header>
+
+    <main class="conteudo">
+        @Body
+    </main>
+
+    <footer class="rodape">
+        ONG Esperança Solidária — MVP acadêmico "Conexão Solidária".
+        Dados pessoais tratados conforme a LGPD (ver documentação do projeto).
+    </footer>
+</div>
+
+@code {
+    private static string PrimeiroNome(string? nome)
+        => string.IsNullOrWhiteSpace(nome) ? "visitante" : nome.Split(' ')[0];
+
+    private async Task SairAsync()
+    {
+        await Auth.NotificarLogoutAsync();
+        Nav.NavigateTo("/");
+    }
+}
