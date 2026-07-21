@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.git/
+**/.vs/
+**/.idea/
+**/node_modules/
+**/*.user
+docs/
+k8s/
+scripts/
+*.md
