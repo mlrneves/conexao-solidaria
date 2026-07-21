@@ -1,4 +1,8 @@
 # Instruem o Prometheus Operator a raspar o /metrics dos 3 microsserviços.
+#
+# O label "release: kps" é obrigatório: o Prometheus instalado pelo chart
+# kube-prometheus-stack só enxerga ServiceMonitors que carreguem o label do
+# release Helm. Sem ele os targets NUNCA aparecem — e sem nenhum erro visível.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -6,6 +10,7 @@ metadata:
   namespace: conexao-solidaria
   labels:
     app: campanhas-api
+    release: kps
 spec:
   selector:
     matchLabels:
@@ -22,6 +27,7 @@ metadata:
   namespace: conexao-solidaria
   labels:
     app: doacoes-api
+    release: kps
 spec:
   selector:
     matchLabels:
@@ -38,6 +44,7 @@ metadata:
   namespace: conexao-solidaria
   labels:
     app: doacoes-worker
+    release: kps
 spec:
   selector:
     matchLabels:

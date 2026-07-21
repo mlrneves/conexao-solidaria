@@ -1,7 +1,9 @@
 # Builda as 4 imagens locais usadas pelos manifests do k8s/ (tag :local).
 # O Kubernetes do Docker Desktop compartilha o daemon — sem push necessário.
 # Uso: .\scripts\build-images.ps1
-$ErrorActionPreference = "Stop"
+# O docker escreve o progresso do build em stderr; sem este ajuste o
+# PowerShell trata essas linhas como erro e aborta o script.
+$ErrorActionPreference = "Continue"
 $raiz = Split-Path -Parent $PSScriptRoot
 Set-Location $raiz
 

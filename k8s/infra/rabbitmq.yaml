@@ -40,16 +40,22 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/rabbitmq
+          # timeoutSeconds generoso: rabbitmq-diagnostics sobe uma VM Erlang a
+          # cada checagem e estoura o timeout padrão de 1s em cluster local.
           readinessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "-q", "ping"]
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 15
+            failureThreshold: 6
           livenessProbe:
             exec:
               command: ["rabbitmq-diagnostics", "-q", "ping"]
-            initialDelaySeconds: 45
-            periodSeconds: 15
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 6
           resources:
             requests:
               cpu: 100m

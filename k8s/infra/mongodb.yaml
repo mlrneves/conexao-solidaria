@@ -39,16 +39,22 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data/db
+          # timeoutSeconds generoso: cada checagem inicia um processo mongosh,
+          # que não completa dentro do timeout padrão de 1s em cluster local.
           readinessProbe:
             exec:
               command: ["mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 15
+            failureThreshold: 6
           livenessProbe:
             exec:
               command: ["mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 6
           resources:
             requests:
               cpu: 100m
