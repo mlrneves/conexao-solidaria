@@ -482,3 +482,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Configuracoes locais de ferramentas de desenvolvimento
+.claude/
+.vscode/
